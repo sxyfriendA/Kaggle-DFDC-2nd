@@ -21,11 +21,12 @@ EPSILON = 1e-12
 
 
 class BasicConv2d(nn.Module):
-
+    # 基础的二维卷积
     def __init__(self, in_channels, out_channels, **kwargs):
         super(BasicConv2d, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
-        self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
+        self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)   # 卷积层
+        self.bn = nn.BatchNorm2d(out_channels, eps=0.001)   
+        # 在卷积神经网络的卷积层之后总会添加BatchNorm2d进行数据的归一化处理，这使得数据在进行Relu之前不会因为数据过大而导致网络性能的不稳定
 
     def forward(self, x):
         x = self.conv(x)
@@ -44,7 +45,8 @@ class BAP(nn.Module):
             self.pool = nn.AdaptiveMaxPool2d(1)
 
         self.dropout = nn.Dropout2d()
-
+        # torch.nn.Dropout对所有元素中每个元素按照概率0.5更改为零
+        # 而torch.nn.Dropout2d是对每个通道按照概率0.5置为0
     def forward(self, features, attentions, dropout=False):
         B, C, H, W = features.size()
         _, M, AH, AW = attentions.size()
@@ -52,10 +54,12 @@ class BAP(nn.Module):
         # match size
         if AH != H or AW != W:
             attentions = F.upsample_bilinear(attentions, size=(H, W))
+            # 对 attentions 上采样使得 attention 和 feature 大小相同
 
         # feature_matrix: (B, M, C) -> (B, M * C)
         if self.pool is None:
             feature_matrix = (torch.einsum('imjk,injk->imn', (attentions, features)) / float(H * W))
+            # torch.einsum被称作爱因斯坦求和 上式的意义为 feature_matrix[i][m][n] = \sum_{j,k} = attention[i][m][j][k]*features[i][n][j][k]
             if dropout:
                 feature_matrixd = self.dropout(feature_matrix).view(B, -1)
             feature_matrix = feature_matrix.view(B, -1)
